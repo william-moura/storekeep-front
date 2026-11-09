@@ -9,7 +9,7 @@ export const tenantInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, 
   // Em produção, sua API pode rodar no mesmo domínio ou em um subdomínio específico (ex: ://empresa1.com)
   // Para ambiente de desenvolvimento local:
   const apiProtocol = window.location.protocol;
-  const apiPort = '8000'; // Altere para a porta do seu Artisan se necessário
+  const apiPort = '8080'; // Altere para a porta do seu Artisan se necessário
   
   let baseUrl = '';
 

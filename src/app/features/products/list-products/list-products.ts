@@ -5,10 +5,22 @@ import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { Product } from '../../../core/models/product';
 import { MatTableDataSource } from '@angular/material/table';
-import { PageEvent } from '@angular/material/paginator';
+import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatTableModule } from '@angular/material/table';
+import { CommonModule } from '@angular/common';
+import { MatSortModule } from '@angular/material/sort';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
-  imports: [],
+  imports: [
+    CommonModule, MatTableModule, MatPaginatorModule, 
+    MatSortModule, MatInputModule, MatFormFieldModule, 
+    MatButtonModule, MatIconModule, MatChipsModule
+  ],
   selector: 'app-list-products',
   styleUrl: './list-products.scss',
   templateUrl: './list-products.html',
@@ -44,9 +56,10 @@ export class ListProducts {
   getProducts() {
     this.isLoading.set(true);
     this.productService.getAllProducts(this.indicePagina, this.pageSize).subscribe({
-      next: (products: Product[]) => {
-        this.dataSource.data = products;
-        this.totalRegistros = products.length;
+      next: (products) => {
+        console.log(products);
+        this.dataSource.data = products.data;
+        this.totalRegistros = products.total;
         this.indicePagina = 0;
         this.pageSize = 5;
         this.isLoading.set(false);
@@ -65,4 +78,21 @@ export class ListProducts {
     this.indicePagina = event.pageIndex;
     this.pageSize = event.pageSize;
     this.getProducts();
+  }
+  addProduct() {
+    this.router.navigate(['/products/add']);
+  }
+  editProduct(product: Product) {
+    this.router.navigate(['/products/edit', product.id]);
+  }
+  deleteProduct(product: Product) {
+    this.productService.deleteProduct(product.id).subscribe({
+      next: () => {
+        this.getProducts();
+      },
+      error: (error: any) => {
+        console.error('Erro ao excluir produto:', error);
+      }
+    });
+  }
 }
