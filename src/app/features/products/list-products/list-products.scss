@@ -70,11 +70,14 @@ table {
     color: #1a237e;
     font-weight: bold;
     white-space: nowrap; // Impede que o título da coluna quebre linha
+    text-align: center;
+    justify-content: center;
   }
 
   td.mat-mdc-cell {
     white-space: nowrap; // Garante que o texto da célula fique em uma linha só
     padding: 12px 16px;
+    text-align: center;
   }
   .center-cell {
     text-align: center;

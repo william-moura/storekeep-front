@@ -15,7 +15,7 @@ export const tenantInterceptor: HttpInterceptorFn = (req: HttpRequest<unknown>, 
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     // Tratamento para desenvolvimento local sem subdomínio configurado na máquina
-    baseUrl = `${apiProtocol}//tenant1.localhost:${apiPort}`;
+    baseUrl = `${apiProtocol}//will.localhost:${apiPort}`;
   } else {
     // Em produção ou com subdomínios configurados localmente (ex: empresa1.seuapp.test)
     baseUrl = `${apiProtocol}//${hostname}:${apiPort}`;

@@ -80,7 +80,7 @@ export class ListProducts {
     this.getProducts();
   }
   addProduct() {
-    this.router.navigate(['/products/add']);
+    this.router.navigate(['/products/create']);
   }
   editProduct(product: Product) {
     this.router.navigate(['/products/edit', product.id]);
