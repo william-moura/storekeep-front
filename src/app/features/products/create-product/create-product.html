@@ -1,237 +1,271 @@
-<div class="page-container">
-    <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
-      <!-- Cabeçalho -->
-      <div class="header-actions">
-        <div>
-          <h1>Cadastro de Produto</h1>
-          <p class="subtitle">Gerencie informações base e grade de SKUs</p>
+<div class="container">
+  <form [formGroup]="productForm" (ngSubmit)="onSubmit()">
+    <!-- Topo -->
+    <header class="page-header">
+      <div>
+        <h1>Novo Produto</h1>
+        <p>Configure o produto, selecione os atributos e preencha os SKUs gerados</p>
+      </div>
+
+      <button mat-flat-button type="submit" class="save-btn">
+        <mat-icon>save</mat-icon>
+        Salvar Produto
+      </button>
+    </header>
+
+    <!-- 1. Informações principais -->
+    <mat-card appearance="outlined" class="card-section">
+      <mat-card-header>
+        <mat-card-title>Informações Básicas</mat-card-title>
+        <mat-card-subtitle>Nome e descrição do produto</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content class="basics-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Nome do produto</mat-label>
+          <input
+            matInput
+            formControlName="name"
+            placeholder="Ex: Camisa Simples"
+            (blur)="rebuildSkuMatrix()"
+          />
+          @if (productForm.controls.name.hasError('required')) {
+            <mat-error>Informe o nome do produto</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="span-full">
+          <mat-label>Descrição</mat-label>
+          <textarea
+            matInput
+            rows="3"
+            formControlName="description"
+            placeholder="Detalhes do produto, modelagem, composição..."
+          ></textarea>
+        </mat-form-field>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- 2. Seleção de atributos e grade de SKUs -->
+    <mat-card appearance="outlined" class="card-section">
+      <mat-card-header>
+        <mat-card-title>Variações e Grade de SKUs</mat-card-title>
+        <mat-card-subtitle>
+          Escolha os atributos cadastrados e os valores que compõem as variações
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <mat-form-field appearance="outline" class="full-width top-field">
+          <mat-label>Atributos do produto</mat-label>
+          <mat-select
+            multiple
+            [value]="selectedAttributeIds()"
+            (selectionChange)="onAttributesChange($event.value)"
+          >
+            @for (attr of catalogAttributes(); track attr.id) {
+              <mat-option [value]="attr.id">{{ attr.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        @if (activeAttributes().length > 0) {
+          <div class="attributes-grid">
+            @for (attr of activeAttributes(); track attr.id) {
+              <div class="attribute-box">
+                <mat-form-field appearance="outline" class="full-width">
+                  <mat-label>Valores de {{ attr.name }}</mat-label>
+                  <mat-select
+                    multiple
+                    [value]="getValuesForAttribute(attr.id)"
+                    (selectionChange)="onValuesChange(attr.id, $event.value)"
+                  >
+                    @for (val of attr.values; track val.id) {
+                      <mat-option [value]="val.id">{{ val.value }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-chip-set class="chips-row">
+                  @for (selectedVal of getValueObjectsForAttribute(attr); track selectedVal.id) {
+                    <mat-chip-row (removed)="removeValueChip(attr.id, selectedVal.id)">
+                      {{ selectedVal.value }}
+                      <button matChipRemove [attr.aria-label]="'Remover ' + selectedVal.value">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </mat-chip-row>
+                  }
+                </mat-chip-set>
+              </div>
+            }
+          </div>
+        }
+
+        <mat-divider class="section-divider"></mat-divider>
+
+        <!-- Resumo da grade -->
+        <div class="summary-bar">
+          <div class="summary-item">
+            <span>Combinações</span>
+            <strong>{{ skuRows().length }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>Estoque total</span>
+            <strong>{{ totalStock() }} un.</strong>
+          </div>
+          <div class="summary-item">
+            <span>Preço médio</span>
+            <strong>{{ averagePrice() | currency: 'BRL' }}</strong>
+          </div>
         </div>
-        <div class="buttons">
-          <button mat-stroked-button type="button">Cancelar</button>
-          <button mat-flat-button color="primary" type="submit">
-            <mat-icon>save</mat-icon>
-            Salvar Produto
+
+        @if (skuRows().length > 0) {
+          <div class="table-box" formArrayName="skus">
+            <table mat-table [dataSource]="skuRows()">
+              <ng-container matColumnDef="combination">
+                <th mat-header-cell *matHeaderCellDef>Variação</th>
+                <td mat-cell *matCellDef="let group">
+                  <span class="combo-badge">
+                    {{ formatCombination(group.get('selected_values')?.value) }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="sku_code">
+                <th mat-header-cell *matHeaderCellDef>Código SKU</th>
+                <td mat-cell *matCellDef="let group" [formGroup]="group">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field-sku">
+                    <input matInput formControlName="sku_code" />
+                  </mat-form-field>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="ean">
+                <th mat-header-cell *matHeaderCellDef>EAN</th>
+                <td mat-cell *matCellDef="let group" [formGroup]="group">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field-ean">
+                    <input matInput formControlName="ean" placeholder="Opcional" />
+                  </mat-form-field>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="price">
+                <th mat-header-cell *matHeaderCellDef>Preço (R$)</th>
+                <td mat-cell *matCellDef="let group" [formGroup]="group">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field-num">
+                    <input matInput type="number" step="0.01" min="0" formControlName="price" />
+                  </mat-form-field>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="stock">
+                <th mat-header-cell *matHeaderCellDef>Estoque</th>
+                <td mat-cell *matCellDef="let group" [formGroup]="group">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="field-num">
+                    <input matInput type="number" min="0" formControlName="stock" />
+                  </mat-form-field>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let group; let idx = index">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="Remover variação"
+                    (click)="removeSkuRow(idx)"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+            </table>
+          </div>
+        } @else {
+          <div class="empty-state">
+            <mat-icon>grid_off</mat-icon>
+            <p>Selecione ao menos um valor em cada atributo para gerar todas as combinações.</p>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <!-- 3. Imagens do produto / SKU -->
+    <mat-card appearance="outlined" class="card-section">
+      <mat-card-header>
+        <mat-card-title>Imagens</mat-card-title>
+        <mat-card-subtitle>
+          Adicione imagens gerais do produto ou vinculadas a um SKU específico
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="image-form-row" [formGroup]="imageForm">
+          <mat-form-field appearance="outline" class="url-field">
+            <mat-label>URL da imagem</mat-label>
+            <input matInput formControlName="url" placeholder="https://..." />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="sku-ref-field">
+            <mat-label>Vincular a SKU</mat-label>
+            <mat-select formControlName="sku_code_ref">
+              <mat-option value="">Produto geral</mat-option>
+              @for (opt of skuOptions(); track opt.sku_code) {
+                <mat-option [value]="opt.sku_code">
+                  {{ opt.sku_code }} — {{ opt.label }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-checkbox formControlName="is_cover">Capa</mat-checkbox>
+
+          <button mat-tonal-button type="button" (click)="addImage()">
+            <mat-icon>add_photo_alternate</mat-icon>
+            Adicionar
           </button>
         </div>
-      </div>
-  
-      <!-- Card 1: Dados Gerais -->
-      <mat-card appearance="outlined" class="section-card">
-        <mat-card-header>
-          <mat-card-title>Informações Básicas</mat-card-title>
-        </mat-card-header>
-        <mat-card-content class="grid-2-cols">
-          <mat-form-field appearance="outline">
-            <mat-label>Nome do Produto</mat-label>
-            <input
-              matInput
-              formControlName="name"
-              placeholder="Ex: Camisa Simples"
-              (blur)="hasVariations() && generateSkusMatrix()"
-            />
-            @if (productForm.controls.name.hasError('required')) {
-              <mat-error>O nome é obrigatório</mat-error>
-            }
-          </mat-form-field>
-  
-          <mat-form-field appearance="outline">
-            <mat-label>Marca / Fabricante</mat-label>
-            <input matInput formControlName="brand" placeholder="Ex: Reserva, Básica..." />
-          </mat-form-field>
-  
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Descrição</mat-label>
-            <textarea matInput rows="2" formControlName="description"></textarea>
-          </mat-form-field>
-        </mat-card-content>
-      </mat-card>
-  
-      <!-- Card 2: Configuração de Variações -->
-      <mat-card appearance="outlined" class="section-card">
-        <mat-card-header class="toggle-header">
-          <div>
-            <mat-card-title>Grade e Variações (SKU)</mat-card-title>
-            <mat-card-subtitle>
-              Ative para produtos com múltiplas cores, tamanhos ou voltagens
-            </mat-card-subtitle>
-          </div>
-          <mat-slide-toggle
-            [checked]="hasVariations()"
-            (change)="onToggleVariations($event.checked)"
-            color="primary"
-          >
-            Produto com variações
-          </mat-slide-toggle>
-        </mat-card-header>
-  
-        <mat-card-content>
-          @if (!hasVariations()) {
-            <!-- MODO PRODUTO SIMPLES -->
-            <div class="grid-3-cols mt-16">
-              <mat-form-field appearance="outline">
-                <mat-label>Código SKU</mat-label>
-                <input matInput formControlName="simpleSku" />
-              </mat-form-field>
-  
-              <mat-form-field appearance="outline">
-                <mat-label>Preço de Venda (R$)</mat-label>
-                <input matInput type="number" step="0.01" formControlName="simplePrice" />
-              </mat-form-field>
-  
-              <mat-form-field appearance="outline">
-                <mat-label>Estoque Atual</mat-label>
-                <input matInput type="number" formControlName="simpleStock" />
-              </mat-form-field>
-            </div>
-          } @else {
-            <!-- MODO COM VARIAÇÕES -->
-            <div class="attributes-builder mt-16">
-              <div class="add-attribute-bar">
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>Novo Atributo (ex: Material, Gola)</mat-label>
-                  <input
-                    matInput
-                    #newAttrInput
-                    (keydown.enter)="$event.preventDefault(); addAttribute(newAttrInput)"
-                  />
-                </mat-form-field>
-                <button
-                  mat-tonal-button
-                  type="button"
-                  (click)="addAttribute(newAttrInput)"
-                >
-                  <mat-icon>add</mat-icon>
-                  Adicionar Atributo
-                </button>
-              </div>
-  
-              <!-- Lista de Atributos e Chips de Valores -->
-              <div class="attribute-list">
-                @for (attr of attributes(); track attr.name; let i = $index) {
-                  <div class="attribute-row">
-                    <div class="attribute-title">
-                      <strong>{{ attr.name }}</strong>
-                      <button
-                        mat-icon-button
-                        color="warn"
-                        type="button"
-                        matTooltip="Remover atributo"
-                        (click)="removeAttribute(i)"
-                      >
-                        <mat-icon>delete_outline</mat-icon>
-                      </button>
-                    </div>
-  
-                    <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
-                      <mat-label>Opções de {{ attr.name }} (pressione Enter)</mat-label>
-                      <mat-chip-grid #chipGrid>
-                        @for (val of attr.values; track val) {
-                          <mat-chip-row (removed)="removeAttributeValue(i, val)">
-                            {{ val }}
-                            <button matChipRemove [attr.aria-label]="'Remover ' + val">
-                              <mat-icon>cancel</mat-icon>
-                            </button>
-                          </mat-chip-row>
-                        }
-                        <input
-                          placeholder="Ex: Branca, Azul, M, GG..."
-                          [matChipInputFor]="chipGrid"
-                          [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
-                          (matChipInputTokenEnd)="addAttributeValue(i, $event)"
-                        />
-                      </mat-chip-grid>
-                    </mat-form-field>
+
+        @if (images().length > 0) {
+          <div class="image-cards">
+            @for (img of images(); track $index; let idx = $index) {
+              <div class="image-card" [class.is-cover]="img.is_cover">
+                <div class="image-info">
+                  <div class="image-title-line">
+                    <span class="image-url">{{ img.url }}</span>
+                    @if (img.is_cover) {
+                      <span class="cover-badge">Capa</span>
+                    }
                   </div>
-                }
+                  <span class="image-scope">
+                    {{ img.sku_code_ref ? 'SKU: ' + img.sku_code_ref : 'Imagem geral do produto' }}
+                  </span>
+                </div>
+
+                <div class="image-actions">
+                  @if (!img.is_cover) {
+                    <button mat-stroked-button type="button" (click)="makeCover(idx)">
+                      Definir capa
+                    </button>
+                  }
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="Remover imagem"
+                    (click)="removeImage(idx)"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
               </div>
-            </div>
-  
-            <mat-divider class="my-24"></mat-divider>
-  
-            <!-- Tabela de SKUs Gerados -->
-            <div class="skus-header">
-              <h3>SKUs Gerados ({{ skusFormArray.length }})</h3>
-              <span class="stock-badge">Estoque Total: <strong>{{ totalStock() }} un.</strong></span>
-            </div>
-  
-            @if (skusFormArray.length > 0) {
-              <div class="table-wrapper" formArrayName="skus">
-                <table mat-table [dataSource]="skusFormArray.controls">
-                  <!-- Coluna Combinação -->
-                  <ng-container matColumnDef="combination">
-                    <th mat-header-cell *matHeaderCellDef>Variação</th>
-                    <td mat-cell *matCellDef="let group">
-                      <span class="variant-pill">
-                        {{ formatAttributesLabel(group.get('attributes')?.value) }}
-                      </span>
-                    </td>
-                  </ng-container>
-  
-                  <!-- Coluna Código SKU -->
-                  <ng-container matColumnDef="sku">
-                    <th mat-header-cell *matHeaderCellDef>Código SKU</th>
-                    <td mat-cell *matCellDef="let group" [formGroup]="group">
-                      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="compact-field">
-                        <input matInput formControlName="sku" />
-                      </mat-form-field>
-                    </td>
-                  </ng-container>
-  
-                  <!-- Coluna Preço -->
-                  <ng-container matColumnDef="price">
-                    <th mat-header-cell *matHeaderCellDef>Preço (R$)</th>
-                    <td mat-cell *matCellDef="let group" [formGroup]="group">
-                      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="compact-field numeric">
-                        <input matInput type="number" step="0.01" formControlName="price" />
-                      </mat-form-field>
-                    </td>
-                  </ng-container>
-  
-                  <!-- Coluna Estoque -->
-                  <ng-container matColumnDef="stock">
-                    <th mat-header-cell *matHeaderCellDef>Estoque</th>
-                    <td mat-cell *matCellDef="let group" [formGroup]="group">
-                      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="compact-field numeric">
-                        <input matInput type="number" formControlName="stock" />
-                      </mat-form-field>
-                    </td>
-                  </ng-container>
-  
-                  <!-- Coluna Ativo -->
-                  <ng-container matColumnDef="active">
-                    <th mat-header-cell *matHeaderCellDef>Ativo</th>
-                    <td mat-cell *matCellDef="let group" [formGroup]="group">
-                      <mat-slide-toggle formControlName="active" color="primary"></mat-slide-toggle>
-                    </td>
-                  </ng-container>
-  
-                  <!-- Coluna Ações -->
-                  <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef></th>
-                    <td mat-cell *matCellDef="let group; let idx = index">
-                      <button
-                        mat-icon-button
-                        color="warn"
-                        type="button"
-                        matTooltip="Excluir esta variação"
-                        (click)="removeSkuRow(idx)"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </td>
-                  </ng-container>
-  
-                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                  <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-                </table>
-              </div>
-            } @else {
-              <p class="empty-state">
-                Adicione opções nos atributos acima (ex: Cor e Tamanho) para gerar os SKUs automaticamente.
-              </p>
             }
-          }
-        </mat-card-content>
-      </mat-card>
-    </form>
-  </div>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+  </form>
+</div>
